@@ -25,4 +25,12 @@ config QCOM_RPMH
 	  Say y here to support the Qualcomm RPMh (resource peripheral manager)
 	  if you need to control regulators on Qualcomm platforms, say y here.
 
+config QCOM_SOCINFO
+	bool "Qualcomm Socinfo support"
+	depends on SMEM
+	help
+	  Say y here to support the Qualcomm socinfo driver which provides
+	  information about the SoC ID, hardware platform, revision, and other
+	  board identification information stored in SMEM.
+
 endif # SOC_QCOM
