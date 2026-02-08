@@ -1,6 +1,14 @@
 menuconfig SMEM
 	bool  "SMEM (Shared Memory mamanger) support"
 
+config SPL_SMEM
+	bool "Shared Memory Manager (SMEM) uclass support in SPL"
+	depends on SPL && SMEM
+	help
+	  Build the SMEM uclass into SPL. Required by any SPL_*_SMEM driver
+	  (e.g. SPL_MSM_SMEM). Selected automatically by drivers that need
+	  the uclass in SPL.
+
 if SMEM
 
 config SANDBOX_SMEM
@@ -21,5 +29,37 @@ config MSM_SMEM
       Enable support for the Qualcomm Shared Memory Manager.
       The driver provides an interface to items in a heap shared among all
       processors in a Qualcomm platform.
+
+config SPL_MSM_SMEM
+    bool "Qualcomm Shared Memory Manager (SMEM) in SPL"
+    depends on SPL && MSM_SMEM
+    select SPL_SMEM
+    help
+      Build the Qualcomm SMEM driver core into SPL. Only the read path
+      (qcom_smem_get) and the DM-free early init (qcom_smem_init_early)
+      are included; the DM probe/allocation paths are compiled out.
+      This is intended for chainloaded SPL that needs to read socinfo
+      before the device tree is selected.
+
+config SPL_MSM_SMEM_BASE
+    hex "Physical base address of SMEM (SPL early-init)"
+    depends on SPL_MSM_SMEM
+    default 0x86000000
+    help
+      Physical base address of the main Qualcomm SMEM region, used by
+      qcom_smem_init_early() in chainloaded SPL where the SMEM driver
+      cannot discover its base via the device tree (because DT selection
+      itself depends on socinfo, which lives in SMEM). The default
+      (0x86000000) is correct for sdm845; pick the value for your SoC.
+      The region is identity-mapped, so no ioremap is performed.
+
+config SPL_MSM_SMEM_SIZE
+    hex "Size of SMEM region (SPL early-init)"
+    depends on SPL_MSM_SMEM
+    default 0x200000
+    help
+      Size of the Qualcomm SMEM region in bytes. Used together with
+      SPL_MSM_SMEM_BASE for the SPL early-init path. The default
+      (2 MiB) is suitable for sdm845 and most modern Qualcomm SoCs.
 
 endif # menu "SMEM Support"

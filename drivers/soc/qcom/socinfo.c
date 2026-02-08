@@ -7,7 +7,6 @@
  * Copyright (c) 2026, Adapted for U-Boot
  */
 
-#include <dm.h>
 #include <errno.h>
 #include <asm/io.h>
 #include <linux/bitops.h>
@@ -15,14 +14,45 @@
 #include <linux/err.h>
 #include <soc/qcom/smem.h>
 #include <soc/qcom/socinfo.h>
+#ifndef CONFIG_XPL_BUILD
+#include <dm.h>
+#endif
 
 static struct socinfo *socinfo_data;
 static size_t socinfo_size;
+
+static int qcom_socinfo_bring_up_smem(void)
+{
+#ifdef CONFIG_XPL_BUILD
+	/*
+	 * SPL: no DT-based DM probe is possible here because DT selection is
+	 * what we're trying to do. Use the compile-time SMEM base instead.
+	 */
+	return qcom_smem_init_early(CONFIG_SPL_MSM_SMEM_BASE,
+				    CONFIG_SPL_MSM_SMEM_SIZE);
+#else
+	/*
+	 * Full U-Boot: trigger DM probe of the SMEM device. The driver's
+	 * probe routine populates the internal __smem handle so a subsequent
+	 * qcom_smem_get() can resolve items.
+	 */
+	struct udevice *dev;
+
+	return uclass_get_device(UCLASS_SMEM, 0, &dev);
+#endif
+}
 
 int qcom_socinfo_init(void)
 {
 	void *info;
 	size_t size;
+	int ret;
+
+	ret = qcom_socinfo_bring_up_smem();
+	if (ret) {
+		pr_err("SMEM bring-up failed: %d\n", ret);
+		return ret;
+	}
 
 	/* Read socinfo from SMEM */
 	info = qcom_smem_get(QCOM_SMEM_HOST_ANY, SMEM_HW_SW_BUILD_ID, &size);

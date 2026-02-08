@@ -17,7 +17,9 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/sizes.h>
+#include <linux/string.h>
 #include <smem.h>
+#include <soc/qcom/smem.h>
 
 /*
  * The Qualcomm shared memory system is an allocate-only heap structure that
@@ -336,6 +338,7 @@ static void *cached_entry_to_item(struct smem_private_entry *e)
 /* Pointer to the one and only smem handle */
 static struct qcom_smem *__smem;
 
+#ifndef CONFIG_XPL_BUILD
 static int qcom_smem_alloc_private(struct qcom_smem *smem,
 				   struct smem_partition_header *phdr,
 				   unsigned int item,
@@ -458,6 +461,7 @@ static int qcom_smem_alloc(unsigned int host, unsigned int item, size_t size)
 
 	return ret;
 }
+#endif /* !CONFIG_XPL_BUILD */
 
 static void *qcom_smem_get_global(struct qcom_smem *smem,
 				  unsigned int item,
@@ -553,7 +557,7 @@ invalid_canary:
  * Looks up smem item and returns pointer to it. Size of smem
  * item is returned in @size.
  */
-static void *qcom_smem_get(unsigned int host, unsigned int item, size_t *size)
+void *qcom_smem_get(unsigned int host, unsigned int item, size_t *size)
 {
 	struct smem_partition_header *phdr;
 	size_t cacheln;
@@ -581,6 +585,7 @@ static void *qcom_smem_get(unsigned int host, unsigned int item, size_t *size)
 
 }
 
+#ifndef CONFIG_XPL_BUILD
 /**
  * qcom_smem_get_free_space() - retrieve amount of free space in a partition
  * @host:	the remote processor identifying a partition, or -1
@@ -612,6 +617,7 @@ static int qcom_smem_get_free_space(unsigned int host)
 
 	return ret;
 }
+#endif /* !CONFIG_XPL_BUILD */
 
 static int qcom_smem_get_sbl_version(struct qcom_smem *smem)
 {
@@ -726,6 +732,7 @@ static int qcom_smem_set_global_partition(struct qcom_smem *smem)
 	return 0;
 }
 
+#ifndef CONFIG_XPL_BUILD
 static int qcom_smem_enumerate_partitions(struct qcom_smem *smem,
 					  unsigned int local_host)
 {
@@ -956,3 +963,68 @@ U_BOOT_DRIVER(qcom_smem) = {
 	.probe = qcom_smem_probe,
 	.remove = qcom_smem_remove,
 };
+#endif /* !CONFIG_XPL_BUILD */
+
+/*
+ * Early SMEM init for use before DM is available (typically chainloaded SPL).
+ * Uses a static storage buffer for @__smem and identity-maps the physical SMEM
+ * base directly. Sets up enough state for qcom_smem_get() to resolve items in
+ * the global heap or global partition (sufficient for socinfo).
+ */
+static u8 qcom_smem_early_buf[sizeof(struct qcom_smem) +
+			      sizeof(struct smem_region)] __aligned(8);
+
+int qcom_smem_init_early(phys_addr_t base, size_t size)
+{
+	struct qcom_smem *smem;
+	struct smem_header *header;
+	u32 version;
+	int ret;
+
+	if (__smem)
+		return 0;
+
+	if (!base || !size)
+		return -EINVAL;
+
+	smem = (struct qcom_smem *)qcom_smem_early_buf;
+	memset(qcom_smem_early_buf, 0, sizeof(qcom_smem_early_buf));
+
+	smem->num_regions = 1;
+	smem->regions[0].aux_base = (u32)base;
+	smem->regions[0].size = size;
+	smem->regions[0].virt_base = (void __iomem *)(uintptr_t)base;
+
+	header = smem->regions[0].virt_base;
+	if (le32_to_cpu(header->initialized) != 1 ||
+	    le32_to_cpu(header->reserved)) {
+		dev_err(smem->dev, "SMEM is not initialized by SBL\n");
+		return -EINVAL;
+	}
+
+	version = qcom_smem_get_sbl_version(smem);
+	switch (version >> 16) {
+	case SMEM_GLOBAL_PART_VERSION:
+		ret = qcom_smem_set_global_partition(smem);
+		if (ret < 0)
+			return ret;
+		smem->item_count = qcom_smem_get_item_count(smem);
+		break;
+	case SMEM_GLOBAL_HEAP_VERSION:
+		smem->item_count = SMEM_ITEM_COUNT;
+		break;
+	default:
+		dev_err(smem->dev, "Unsupported SMEM version 0x%x\n", version);
+		return -EINVAL;
+	}
+
+	/*
+	 * Skip qcom_smem_enumerate_partitions(): we only need the global heap
+	 * or global partition (for socinfo). Per-host partitions are not used
+	 * by the early DTB-selection path.
+	 */
+
+	__smem = smem;
+
+	return 0;
+}
