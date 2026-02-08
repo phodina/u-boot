@@ -126,6 +126,7 @@ obj-$(CONFIG_$(PHASE_)OF_LIBFDT) += fdtdec.o fdtdec_common.o
 obj-y += hang.o
 obj-y += linux_compat.o
 obj-y += linux_string.o
+obj-y += cmdline_utils.o
 obj-$(CONFIG_$(PHASE_)LMB) += lmb.o
 obj-y += membuf.o
 obj-$(CONFIG_REGEX) += slre.o
