@@ -75,6 +75,18 @@ u32 qcom_socinfo_get_hw_plat_subtype(void)
 	return le32_to_cpu(socinfo_data->hw_plat_subtype);
 }
 
+u32 qcom_socinfo_get_plat_ver(void)
+{
+	if (!socinfo_data)
+		return 0;
+
+	/* plat_ver is available from version 4 onwards */
+	if (le32_to_cpu(socinfo_data->fmt) < SOCINFO_VERSION(0, 4))
+		return 0;
+
+	return le32_to_cpu(socinfo_data->plat_ver);
+}
+
 u32 qcom_socinfo_get_serial_num(void)
 {
 	if (!socinfo_data)

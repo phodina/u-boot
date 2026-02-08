@@ -116,6 +116,7 @@ int qcom_socinfo_init(void);
 u32 qcom_socinfo_get_id(void);
 u32 qcom_socinfo_get_hw_plat(void);
 u32 qcom_socinfo_get_hw_plat_subtype(void);
+u32 qcom_socinfo_get_plat_ver(void);
 u32 qcom_socinfo_get_serial_num(void);
 void qcom_socinfo_print(void);
 
