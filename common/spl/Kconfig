@@ -1396,6 +1396,19 @@ config SPL_QCOM_SMEM
 	  on hardware platform information and Android boot configuration
 	  on Qualcomm platforms.
 
+config SPL_QCOM_DTB_SELECTION_SOURCE
+	bool "DTBs are appended after U-Boot binary (not in FIT image)"
+	depends on SPL_QCOM_SMEM
+	default y
+	help
+	  Select where DTBs are located for runtime DTB selection on Qualcomm
+	  platforms. If enabled, DTBs are expected to be appended after the
+	  U-Boot binary in memory and will be scanned for matching hardware.
+	  If disabled, DTBs are expected to be embedded in a FIT image and
+	  will be parsed from the FIT structure. This option controls how
+	  the DTB selection logic searches for and selects the appropriate
+	  device tree based on socinfo and Android boot parameters.
+
 config SPL_PCI_DFU
 	bool "PCIe boot support"
 	depends on SPL_PCI_ENDPOINT

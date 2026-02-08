@@ -15,6 +15,7 @@
 #include <env.h>
 #include <asm/io.h>
 #include <malloc.h>
+#include <image.h>
 
 #define FDT_MAGIC_SIZE 4
 
@@ -135,6 +136,114 @@ int qcom_scan_appended_dtbs(ulong start_addr, size_t max_size)
 }
 
 /**
+ * qcom_scan_fit_dtbs() - Scan for DTBs in FIT image
+ *
+ * @fit_addr: Address of the FIT image (typically ramdisk location)
+ *
+ * Return: number of DTBs found
+ */
+int qcom_scan_fit_dtbs(ulong fit_addr)
+{
+	const void *fit = (const void *)fit_addr;
+	int images_noffset, noffset;
+	const char *fit_uname;
+	int fit_uname_len;
+	int ndepth;
+	int count = 0;
+	u32 soc_id, board_id, board_rev;
+	int ret;
+	const char *compatible;
+
+	dtb_count = 0;
+
+	if (!fit_addr) {
+		printf("No FIT image address provided\n");
+		return 0;
+	}
+
+	if (fdt_check_header(fit)) {
+		printf("Bad FIT image header at 0x%lx\n", fit_addr);
+		return 0;
+	}
+
+	printf("Scanning FIT image at 0x%lx for DTBs...\n", fit_addr);
+
+	/* Find the images parent node */
+	images_noffset = fdt_path_offset(fit, FIT_IMAGES_PATH);
+	if (images_noffset < 0) {
+		printf("Can't find images parent node '%s' (%s)\n",
+		       FIT_IMAGES_PATH, fdt_strerror(images_noffset));
+		return 0;
+	}
+
+	/* Iterate over all images in FIT */
+	for (ndepth = 0, count = 0,
+	     noffset = fdt_next_node(fit, images_noffset, &ndepth);
+	     (noffset >= 0) && (ndepth > 0) && (count < CONFIG_QCOM_MAX_DTBS);
+	     noffset = fdt_next_node(fit, noffset, &ndepth)) {
+		if (ndepth == 1) {
+			/*
+			 * Direct child node of the images parent node,
+			 * i.e. component image node.
+			 */
+			fit_uname = fit_get_name(fit, noffset, &fit_uname_len);
+			if (!fit_uname) {
+				printf("Can't get node name\n");
+				continue;
+			}
+
+			/* Check if this is a fdt image */
+			if (fit_image_check_type(fit, noffset, IH_TYPE_FLATDT)) {
+				void *fdt_data;
+				size_t fdt_len;
+
+				/* Get FDT data */
+				ret = fit_image_get_data(fit, noffset, (const void **)&fdt_data, &fdt_len);
+				if (ret) {
+					printf("Can't get FDT data for '%s': %d\n", fit_uname, ret);
+					continue;
+				}
+
+				/* Verify FDT header */
+				if (fdt_check_header(fdt_data)) {
+					printf("Bad FDT header for '%s'\n", fit_uname);
+					continue;
+				}
+
+				/* Parse DTB for Qcom properties */
+				ret = qcom_parse_dtb(fdt_data, &soc_id, &board_id, &board_rev);
+				if (ret < 0) {
+					debug("FIT DTB '%s': no qcom,board-id\n", fit_uname);
+					soc_id = 0;
+					board_id = 0;
+					board_rev = 0;
+				}
+
+				compatible = fdt_getprop(fdt_data, 0, "compatible", NULL);
+
+				/* Add to DTB list */
+				dtb_list[dtb_count].fdt = fdt_data;
+				dtb_list[dtb_count].soc_id = soc_id;
+				dtb_list[dtb_count].board_id = board_id;
+				dtb_list[dtb_count].board_rev = board_rev;
+				dtb_list[dtb_count].size = fdt_len;
+				dtb_list[dtb_count].compatible = compatible;
+
+				printf("  [%d] FIT DTB '%s': soc_id=0x%x board_id=%u rev=%u size=%zu\n",
+				       dtb_count, fit_uname, soc_id, board_id, board_rev, fdt_len);
+				if (compatible)
+					printf("      Compatible: %s\n", compatible);
+
+				dtb_count++;
+			}
+		}
+	}
+
+	printf("Found %d DTB(s) in FIT image\n", dtb_count);
+	return dtb_count;
+}
+
+/**
  * qcom_select_dtb_by_socinfo() - Select DTB matching socinfo
  *
  * @soc_id: SoC ID from socinfo
@@ -196,6 +305,7 @@ void *qcom_select_dtb_from_socinfo_and_cmdline(void)
 	u32 soc_id = 0, hw_plat = 0, hw_subtype = 0;
 	int ret;
 	void *selected_dtb = NULL;
+	int dtb_count = 0;
 
 	/* Get socinfo data using getter functions */
 	soc_id = qcom_socinfo_get_id();
@@ -209,6 +319,37 @@ void *qcom_select_dtb_from_socinfo_and_cmdline(void)
 		printf("Warning: No socinfo available or not initialized\n");
 	}
 
+	/* Scan for DTBs based on configuration */
+#ifdef CONFIG_SPL_QCOM_DTB_SELECTION_SOURCE
+	/* DTBs are appended after U-Boot binary */
+	ulong dtb_scan_start = CONFIG_SYS_TEXT_BASE + 0x100000;
+	dtb_count = qcom_scan_appended_dtbs(dtb_scan_start, SZ_4M);
+#else
+	/* DTBs are in FIT image (ramdisk location) */
+	const char *ramdisk_addr_str = env_get("ramdisk_addr_r");
+	ulong fit_addr = 0;
+
+	if (ramdisk_addr_str) {
+		fit_addr = simple_strtoul(ramdisk_addr_str, NULL, 16);
+	} else {
+		/* Fallback to common ramdisk load address */
+		fit_addr = CONFIG_SYS_LOAD_ADDR + 0x2000000; /* +32MB */
+		printf("No ramdisk_addr_r found, trying 0x%lx\n", fit_addr);
+	}
+
+	if (fit_addr) {
+		dtb_count = qcom_scan_fit_dtbs(fit_addr);
+	}
+#endif
+
+	if (dtb_count == 0) {
+		printf("No DTBs found for selection\n");
+		goto parse_cmdline;
+	}
+
+	printf("Found %d DTB(s), proceeding with selection\n", dtb_count);
+
+parse_cmdline:
 	/* Parse Android boot parameters */
 	memset(&boot_params, 0, sizeof(boot_params));
 	bootargs = env_get("bootargs");

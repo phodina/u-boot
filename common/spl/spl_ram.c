@@ -92,27 +92,17 @@ static int spl_ram_load_image(struct spl_image_info *spl_image,
 	/* Scan for appended DTBs and select the appropriate one */
 	do {
 		void *selected_dtb = NULL;
-		ulong dtb_scan_start;
-		int dtb_count;
 
-		dtb_scan_start = CONFIG_SYS_TEXT_BASE + 0x100000; /* Start 1MB after U-Boot */
+		/* Use unified DTB selection that handles both appended and FIT DTBs */
+		selected_dtb = qcom_select_dtb_from_socinfo_and_cmdline();
 
-		dtb_count = qcom_scan_appended_dtbs(dtb_scan_start, SZ_4M);
-		if (dtb_count > 0) {
-			debug("Found %d DTB(s), selecting based on socinfo and cmdline\n", dtb_count);
-
-			selected_dtb = qcom_select_dtb_from_socinfo_and_cmdline();
-
-			if (selected_dtb) {
-				debug("Selected DTB at address 0x%p\n", selected_dtb);
-				/* Set the selected DTB as the working DTB */
-				gd->fdt_blob = selected_dtb;
-				gd->fdt_size = fdt_totalsize(selected_dtb);
-			} else {
-				debug("Warning: No suitable DTB found, using default\n");
-			}
+		if (selected_dtb) {
+			debug("Selected DTB at address 0x%p\n", selected_dtb);
+			/* Set the selected DTB as the working DTB */
+			gd->fdt_blob = selected_dtb;
+			gd->fdt_size = fdt_totalsize(selected_dtb);
 		} else {
-			debug("No appended DTBs found\n");
+			debug("Warning: No suitable DTB found, using default\n");
 		}
 	} while (0);
 #endif
