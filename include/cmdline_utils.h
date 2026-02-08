@@ -68,4 +68,76 @@ struct cmdline_mask_param {
  */
 char *mask_cmdline_params(const char *cmdline, struct cmdline_mask_param *params, int count);
 
+/**
+ * struct androidboot_params - Structure containing common Android boot parameters
+ * @hardware_ddr: DDR hardware info
+ * @ddr_info: DDR information
+ * @ddr_size: DDR size
+ * @dsi_display0: Display configuration
+ * @slot_suffix: A/B partition slot suffix
+ * @slot_retry_count: A/B slot retry count
+ * @slot_successful: A/B slot successful flag
+ * @hardware_platform: Hardware platform
+ * @hardware: Hardware name
+ * @revision: Hardware revision
+ * @bootloader: Bootloader version
+ * @hardware_sku: Hardware SKU
+ * @secure_boot: Secure boot state
+ * @cdt_hwid: CDT hardware ID
+ * @hardware_majorid: Hardware major ID
+ * @dtb_idx: Device tree blob index
+ * @mode: Boot mode
+ * @bootreason: Boot reason
+ * @serialno: Serial number
+ */
+struct androidboot_params {
+	char *hardware_ddr;
+	char *ddr_info;
+	char *ddr_size;
+
+	char *dsi_display0;
+
+	char *slot_suffix;
+	char *slot_retry_count;
+	char *slot_successful;
+
+	char *hardware_platform;
+	char *hardware;
+	char *revision;
+	char *hardware_sku;
+	char *hardware_majorid;
+
+	char *bootloader;
+	char *bootreason;
+	char *secure_boot;
+	char *mode;
+
+	char *cdt_hwid;
+	char *dtb_idx;
+
+	char *serialno;
+};
+
+/**
+ * parse_androidboot_params() - Parse Android boot parameters from command line
+ * @cmdline: The command line string to parse
+ * @params: Pointer to androidboot_params structure to populate
+ *
+ * This function parses common Android boot parameters from a command line.
+ * Memory for parameter values is allocated and must be freed using
+ * free_androidboot_params().
+ *
+ * Return: 0 on success, negative error code on failure
+ */
+int parse_androidboot_params(const char *cmdline, struct androidboot_params *params);
+
+/**
+ * free_androidboot_params() - Free memory allocated for Android boot parameters
+ * @params: Pointer to androidboot_params structure to free
+ *
+ * This function frees all memory allocated for parameter values in the
+ * androidboot_params structure.
+ */
+void free_androidboot_params(struct androidboot_params *params);
+
 #endif /* _CMDLINE_UTILS_H_ */
