@@ -186,3 +186,94 @@ char *mask_cmdline_params(const char *cmdline, struct cmdline_mask_param *params
 	*dst_pos = '\0';
 	return result;
 }
+
+/**
+ * parse_androidboot_params() - Parse Android boot parameters from command line
+ */
+int parse_androidboot_params(const char *cmdline, struct androidboot_params *params)
+{
+	struct cmdline_param cmdline_params[] = {
+		{"androidboot.hardware.ddr", NULL, 0},
+		{"androidboot.ddr_info", NULL, 0},
+		{"androidboot.ddr_size", NULL, 0},
+		{"msm_drm.dsi_display0", NULL, 0},
+		{"androidboot.slot_suffix", NULL, 0},
+		{"androidboot.slot_retry_count", NULL, 0},
+		{"androidboot.slot_successful", NULL, 0},
+		{"androidboot.hardware.platform", NULL, 0},
+		{"androidboot.hardware", NULL, 0},
+		{"androidboot.revision", NULL, 0},
+		{"androidboot.bootloader", NULL, 0},
+		{"androidboot.hardware.sku", NULL, 0},
+		{"androidboot.secure_boot", NULL, 0},
+		{"androidboot.cdt_hwid", NULL, 0},
+		{"androidboot.hardware.majorid", NULL, 0},
+		{"androidboot.dtb_idx", NULL, 0},
+		{"androidboot.mode", NULL, 0},
+		{"androidboot.bootreason", NULL, 0},
+		{"androidboot.serialno", NULL, 0},
+	};
+	int ret, count = sizeof(cmdline_params) / sizeof(cmdline_params[0]);
+
+	if (!cmdline || !params)
+		return -EINVAL;
+
+	memset(params, 0, sizeof(struct androidboot_params));
+
+	ret = parse_cmdline_params(cmdline, cmdline_params, count);
+	if (ret < 0)
+		return ret;
+
+	params->hardware_ddr = cmdline_params[0].value;
+	params->ddr_info = cmdline_params[1].value;
+	params->ddr_size = cmdline_params[2].value;
+	params->dsi_display0 = cmdline_params[3].value;
+	params->slot_suffix = cmdline_params[4].value;
+	params->slot_retry_count = cmdline_params[5].value;
+	params->slot_successful = cmdline_params[6].value;
+	params->hardware_platform = cmdline_params[7].value;
+	params->hardware = cmdline_params[8].value;
+	params->revision = cmdline_params[9].value;
+	params->bootloader = cmdline_params[10].value;
+	params->hardware_sku = cmdline_params[11].value;
+	params->secure_boot = cmdline_params[12].value;
+	params->cdt_hwid = cmdline_params[13].value;
+	params->hardware_majorid = cmdline_params[14].value;
+	params->dtb_idx = cmdline_params[15].value;
+	params->mode = cmdline_params[16].value;
+	params->bootreason = cmdline_params[17].value;
+	params->serialno = cmdline_params[18].value;
+
+	return 0;
+}
+
+/**
+ * free_androidboot_params() - Free memory allocated for Android boot parameters
+ */
+void free_androidboot_params(struct androidboot_params *params)
+{
+	if (!params)
+		return;
+
+	if (params->hardware_ddr) free(params->hardware_ddr);
+	if (params->ddr_info) free(params->ddr_info);
+	if (params->ddr_size) free(params->ddr_size);
+	if (params->dsi_display0) free(params->dsi_display0);
+	if (params->slot_suffix) free(params->slot_suffix);
+	if (params->slot_retry_count) free(params->slot_retry_count);
+	if (params->slot_successful) free(params->slot_successful);
+	if (params->hardware_platform) free(params->hardware_platform);
+	if (params->hardware) free(params->hardware);
+	if (params->revision) free(params->revision);
+	if (params->bootloader) free(params->bootloader);
+	if (params->hardware_sku) free(params->hardware_sku);
+	if (params->secure_boot) free(params->secure_boot);
+	if (params->cdt_hwid) free(params->cdt_hwid);
+	if (params->hardware_majorid) free(params->hardware_majorid);
+	if (params->dtb_idx) free(params->dtb_idx);
+	if (params->mode) free(params->mode);
+	if (params->bootreason) free(params->bootreason);
+	if (params->serialno) free(params->serialno);
+
+	memset(params, 0, sizeof(struct androidboot_params));
+}
