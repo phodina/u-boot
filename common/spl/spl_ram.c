@@ -15,6 +15,12 @@
 #include <mapmem.h>
 #include <spl.h>
 #include <linux/libfdt.h>
+#ifdef CONFIG_SPL_QCOM_SMEM
+#include <env.h>
+#include <cmdline_utils.h>
+#include <soc/qcom/socinfo.h>
+#include <dtb_select.h>
+#endif
 
 static ulong spl_ram_load_read(struct spl_load_info *load, ulong sector,
 			       ulong count, void *buf)
@@ -48,6 +54,68 @@ static int spl_ram_load_image(struct spl_image_info *spl_image,
 	struct legacy_img_hdr *header;
 	ulong addr = 0;
 	int ret;
+
+#ifdef CONFIG_SPL_QCOM_SMEM
+	ret = qcom_socinfo_init();
+	if (ret)
+		debug("Warning: Failed to initialize socinfo: %d\n", ret);
+	else
+		debug("Socinfo initialized successfully\n");
+
+	/* Parse Android boot parameters from bootargs if available */
+	do {
+		const char *bootargs = env_get("bootargs");
+		struct androidboot_params boot_params;
+
+		if (bootargs) {
+			ret = parse_androidboot_params(bootargs, &boot_params);
+			if (ret == 0) {
+				debug("Android boot parameters parsed:\n");
+				if (boot_params.hardware)
+					debug("  Hardware: %s\n", boot_params.hardware);
+				if (boot_params.serialno)
+					debug("  Serial: %s\n", boot_params.serialno);
+				if (boot_params.bootloader)
+					debug("  Bootloader: %s\n", boot_params.bootloader);
+				if (boot_params.slot_suffix)
+					debug("  Slot suffix: %s\n", boot_params.slot_suffix);
+
+				free_androidboot_params(&boot_params);
+			} else {
+				debug("Failed to parse Android boot parameters: %d\n", ret);
+			}
+		} else {
+			debug("No bootargs found for Android parameter parsing\n");
+		}
+	} while (0);
+
+	/* Scan for appended DTBs and select the appropriate one */
+	do {
+		void *selected_dtb = NULL;
+		ulong dtb_scan_start;
+		int dtb_count;
+
+		dtb_scan_start = CONFIG_SYS_TEXT_BASE + 0x100000; /* Start 1MB after U-Boot */
+
+		dtb_count = qcom_scan_appended_dtbs(dtb_scan_start, SZ_4M);
+		if (dtb_count > 0) {
+			debug("Found %d DTB(s), selecting based on socinfo and cmdline\n", dtb_count);
+
+			selected_dtb = qcom_select_dtb_from_socinfo_and_cmdline();
+
+			if (selected_dtb) {
+				debug("Selected DTB at address 0x%p\n", selected_dtb);
+				/* Set the selected DTB as the working DTB */
+				gd->fdt_blob = selected_dtb;
+				gd->fdt_size = fdt_totalsize(selected_dtb);
+			} else {
+				debug("Warning: No suitable DTB found, using default\n");
+			}
+		} else {
+			debug("No appended DTBs found\n");
+		}
+	} while (0);
+#endif
 
 	if (IS_ENABLED(CONFIG_SPL_LOAD_FIT)) {
 		addr = IF_ENABLED_INT(CONFIG_SPL_LOAD_FIT,

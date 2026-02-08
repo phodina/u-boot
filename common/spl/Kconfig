@@ -1385,6 +1385,17 @@ config SPL_RAM_DEVICE
 	  be already in memory when SPL takes over, e.g. loaded by the boot
 	  ROM.
 
+config SPL_QCOM_SMEM
+	bool "Qualcomm SMEM and Android cmdline support in SPL"
+	depends on SPL_RAM_DEVICE && QCOM_SOCINFO
+	help
+	  Enable Qualcomm Shared Memory (SMEM) and Android command line
+	  parsing support in SPL. This allows SPL to read SoC information
+	  from SMEM and parse Android boot parameters from the command line
+	  when chainloaded. This is useful for runtime DTB selection based
+	  on hardware platform information and Android boot configuration
+	  on Qualcomm platforms.
+
 config SPL_PCI_DFU
 	bool "PCIe boot support"
 	depends on SPL_PCI_ENDPOINT
