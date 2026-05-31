@@ -166,8 +166,8 @@ static int fixup_qcom_dwc3(struct device_node *root, struct device_node *glue_np
 	/* No driver available - apply the fixup */
 	debug("Applying USB high-speed fixup to %s\n", dwc3->name);
 
-	/* Tell the glue driver to configure the wrapper for high-speed only operation */
-	ret = of_write_prop(dwc3, "qcom,select-utmi-as-pipe-clk", 0, NULL);
+	/* dwc3_qcom_glue_configure() reads this from the glue node, not the inner controller. */
+	ret = of_write_prop(glue_np, "qcom,select-utmi-as-pipe-clk", 0, NULL);
 	if (ret) {
 		log_err("Failed to add property 'qcom,select-utmi-as-pipe-clk': %d\n", ret);
 		return ret;
