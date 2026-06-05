@@ -25,6 +25,10 @@ int qcom_scan_appended_dtbs(ulong start_addr, size_t max_size);
  * @hw_plat:    platform type from socinfo (low 8 bits of qcom,board-id cell[0])
  * @hw_subtype: hardware subtype from socinfo (high 8 bits of board-id cell[0])
  * @plat_ver:   packed platform major/minor from socinfo (major in bits 16..31)
+ * @codename:   optional vendor-supplied device codename from the kernel
+ *              cmdline (androidboot.project_codename=, e.g. "enchilada").
+ *              When non-NULL, candidates whose `compatible` contains this
+ *              token get a tiebreaker bonus. Pass NULL when unavailable.
  *
  * Decomposes the candidate DTB's qcom,board-id cell[0] into its four fields
  * (platform type, minor version, major version, hardware subtype) and scores
@@ -34,7 +38,8 @@ int qcom_scan_appended_dtbs(ulong start_addr, size_t max_size);
  * Return: pointer to matching FDT, or NULL if not found.
  */
 void *qcom_select_dtb_by_socinfo(u32 soc_id, u32 hw_plat,
-				 u32 hw_subtype, u32 plat_ver);
+				 u32 hw_subtype, u32 plat_ver,
+				 const char *codename);
 
 /**
  * qcom_select_dtb_from_socinfo_and_cmdline() - Select DTB using socinfo and Android cmdline

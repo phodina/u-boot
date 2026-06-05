@@ -116,6 +116,9 @@ struct androidboot_params {
 	char *dtb_idx;
 
 	char *serialno;
+
+	char *project_codename;
+	char *project_name;
 };
 
 /**

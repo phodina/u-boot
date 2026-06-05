@@ -265,7 +265,8 @@ int qcom_scan_appended_dtbs(ulong start_addr, size_t max_size)
  * Return: pointer to the best-matching FDT, or NULL if nothing matches.
  */
 void *qcom_select_dtb_by_socinfo(u32 soc_id, u32 hw_plat,
-				 u32 hw_subtype, u32 plat_ver)
+				 u32 hw_subtype, u32 plat_ver,
+				 const char *codename)
 {
 	const u32 plat_minor = plat_ver & 0xff;
 	const u32 plat_major = (plat_ver >> 16) & 0xff;
@@ -288,6 +289,8 @@ void *qcom_select_dtb_by_socinfo(u32 soc_id, u32 hw_plat,
 		printf("ABL panel compatible: %s\n", abl_panel);
 	if (abl_first_compat)
 		printf("ABL FDT first compatible: %s\n", abl_first_compat);
+	if (codename)
+		printf("Cmdline project_codename: %s\n", codename);
 
 	printf("\nMatching DTBs against: soc=0x%x plat=%u subtype=%u ver=%u.%u\n",
 	       soc_id, hw_plat, hw_subtype, plat_major, plat_minor);
@@ -355,6 +358,26 @@ void *qcom_select_dtb_by_socinfo(u32 soc_id, u32 hw_plat,
 		if (abl_first_compat && dtb_list[i].compatible &&
 		    !strcmp(abl_first_compat, dtb_list[i].compatible))
 			score += 400;
+
+		/*
+		 * Vendor cmdline codename — authoritative when present.
+		 * OnePlus, Sony, etc. ABLs set androidboot.project_codename=
+		 * <device> on the kernel cmdline. The codename ("enchilada",
+		 * "fajita", "akatsuki") is the device half of the DTB's first
+		 * compatible string ("oneplus,enchilada"), so a substring
+		 * match identifies the device unambiguously. Bonus is large
+		 * enough to override the ABL-FDT-first-compat tiebreaker
+		 * (+400) so a misleading v2 --dtb section can't beat the
+		 * device's own self-declaration. In the universal multi-DTB
+		 * scheme: each device's ABL picks *some* DTB from the blob
+		 * (often whichever matches board_id first — e.g. OP6 ABL
+		 * picks akatsuki because akatsuki is the first plat=8 entry
+		 * in scan order), so ABL FDT first-compat signal points at
+		 * the wrong device. Codename overrides.
+		 */
+		if (codename && dtb_list[i].compatible &&
+		    strstr(dtb_list[i].compatible, codename))
+			score += 1000;
 
 		printf("  [%d] score=%u (board_id=0x%08x: plat=%u subtype=%u ver=%u.%u)\n",
 		       i, score, dtb_bid, dtb_plat, dtb_subtyp,
@@ -461,7 +484,8 @@ parse_cmdline:
 	 */
 	if (soc_id) {
 		selected_dtb = qcom_select_dtb_by_socinfo(soc_id, hw_plat,
-							  hw_subtype, plat_ver);
+							  hw_subtype, plat_ver,
+							  boot_params.project_codename);
 	}
 
 	/*

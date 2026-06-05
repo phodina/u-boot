@@ -212,6 +212,8 @@ int parse_androidboot_params(const char *cmdline, struct androidboot_params *par
 		{"androidboot.mode", NULL, 0},
 		{"androidboot.bootreason", NULL, 0},
 		{"androidboot.serialno", NULL, 0},
+		{"androidboot.project_codename", NULL, 0},
+		{"androidboot.project_name", NULL, 0},
 	};
 	int ret, count = sizeof(cmdline_params) / sizeof(cmdline_params[0]);
 
@@ -243,6 +245,8 @@ int parse_androidboot_params(const char *cmdline, struct androidboot_params *par
 	params->mode = cmdline_params[16].value;
 	params->bootreason = cmdline_params[17].value;
 	params->serialno = cmdline_params[18].value;
+	params->project_codename = cmdline_params[19].value;
+	params->project_name = cmdline_params[20].value;
 
 	return 0;
 }
@@ -274,6 +278,8 @@ void free_androidboot_params(struct androidboot_params *params)
 	if (params->mode) free(params->mode);
 	if (params->bootreason) free(params->bootreason);
 	if (params->serialno) free(params->serialno);
+	if (params->project_codename) free(params->project_codename);
+	if (params->project_name) free(params->project_name);
 
 	memset(params, 0, sizeof(struct androidboot_params));
 }
