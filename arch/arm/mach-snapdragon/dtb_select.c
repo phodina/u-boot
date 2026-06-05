@@ -272,14 +272,22 @@ void *qcom_select_dtb_by_socinfo(u32 soc_id, u32 hw_plat,
 	void *best_match = NULL;
 	u32 best_score = 0;
 	const char *abl_panel = NULL;
+	const char *abl_first_compat = NULL;
 	phys_addr_t abl_fdt_addr;
 	int i;
 
 	abl_fdt_addr = get_prev_bl_fdt_addr();
-	if (abl_fdt_addr)
-		abl_panel = qcom_find_panel_compat((const void *)(uintptr_t)abl_fdt_addr);
+	if (abl_fdt_addr) {
+		const void *abl_fdt = (const void *)(uintptr_t)abl_fdt_addr;
+
+		abl_panel = qcom_find_panel_compat(abl_fdt);
+		if (!fdt_check_header(abl_fdt))
+			abl_first_compat = fdt_getprop(abl_fdt, 0, "compatible", NULL);
+	}
 	if (abl_panel)
 		printf("ABL panel compatible: %s\n", abl_panel);
+	if (abl_first_compat)
+		printf("ABL FDT first compatible: %s\n", abl_first_compat);
 
 	printf("\nMatching DTBs against: soc=0x%x plat=%u subtype=%u ver=%u.%u\n",
 	       soc_id, hw_plat, hw_subtype, plat_major, plat_minor);
@@ -331,6 +339,22 @@ void *qcom_select_dtb_by_socinfo(u32 soc_id, u32 hw_plat,
 		if (abl_panel && dtb_list[i].panel_compatible &&
 		    !strcmp(abl_panel, dtb_list[i].panel_compatible))
 			score += 300;
+
+		/*
+		 * ABL-FDT top-compatible tiebreaker. Boards like OP6, OP6T, and
+		 * Sony XZ3 all declare qcom,board-id plat=8 subtype=0 in upstream
+		 * DT, so socinfo cannot disambiguate them. When the boot.img author
+		 * packaged a device-native DTB in the v2 --dtb section, ABL hands
+		 * us that DTB and its top-level `compatible` (e.g. "oneplus,enchilada")
+		 * identifies the device unambiguously. Bonus the candidate whose
+		 * first compatible matches. Kept smaller than +500 (plat) so that
+		 * socinfo still trumps a misleading v2 --dtb section (e.g. the
+		 * universal sdm845 boot.img uses blueline as the section even when
+		 * booting on a OnePlus 6).
+		 */
+		if (abl_first_compat && dtb_list[i].compatible &&
+		    !strcmp(abl_first_compat, dtb_list[i].compatible))
+			score += 400;
 
 		printf("  [%d] score=%u (board_id=0x%08x: plat=%u subtype=%u ver=%u.%u)\n",
 		       i, score, dtb_bid, dtb_plat, dtb_subtyp,
@@ -424,36 +448,46 @@ parse_cmdline:
 	}
 
 	/*
-	 * First, try matching against the compatible string in the FDT
-	 * that ABL handed us in x0. ABL has already done its own DTB
-	 * selection per its dtbo_a partition, so its top-level compatible
-	 * (e.g. "shift,axolotl") is the most authoritative device hint
-	 * available — more specific than socinfo (which can collide for
-	 * boards sharing the same hw_plat value) and more reliable than
-	 * androidboot.hardware (which may be absent or generic).
+	 * Primary matcher: socinfo (with panel-compat tiebreaker for boards
+	 * that share a board_id — see qcom_select_dtb_by_socinfo). Socinfo
+	 * is read from on-chip non-volatile data and reflects the running
+	 * hardware unambiguously, which makes it the only reliable signal
+	 * when the boot.img author chose a *non-native* DTB for the v2
+	 * `--dtb` section (e.g. the universal sdm845 boot.img uses
+	 * sdm845-google-blueline.dtb because Pixel 3's ABL is the strictest
+	 * verifier — but that DTB then becomes the "ABL-provided FDT" on
+	 * every device that runs the image, including OnePlus 6, SHIFT,
+	 * etc., misleading any matcher that trusts ABL FDT's compatible).
 	 */
-	do {
+	if (soc_id) {
+		selected_dtb = qcom_select_dtb_by_socinfo(soc_id, hw_plat,
+							  hw_subtype, plat_ver);
+	}
+
+	/*
+	 * Fallback: ABL-provided FDT compatible. Only useful when ABL
+	 * really did select a board-native DTB from its dtbo_a partition
+	 * and socinfo above didn't yield a match (rare — e.g. unknown
+	 * SoC ID).
+	 */
+	if (!selected_dtb) {
 		phys_addr_t prev_fdt = get_prev_bl_fdt_addr();
 		const void *prev;
 		const char *prev_compat;
 		int len;
 
-		if (!prev_fdt)
-			break;
-		prev = (const void *)(uintptr_t)prev_fdt;
-		if (fdt_check_header(prev))
-			break;
-		prev_compat = fdt_getprop(prev, 0, "compatible", &len);
-		if (!prev_compat || len <= 0)
-			break;
-		printf("ABL-provided FDT compatible: %s\n", prev_compat);
-		selected_dtb = qcom_select_dtb_by_compatible_string(prev_compat);
-	} while (0);
-
-	/* Fall back to socinfo-based matching */
-	if (!selected_dtb && soc_id) {
-		selected_dtb = qcom_select_dtb_by_socinfo(soc_id, hw_plat,
-							  hw_subtype, plat_ver);
+		if (prev_fdt) {
+			prev = (const void *)(uintptr_t)prev_fdt;
+			if (!fdt_check_header(prev)) {
+				prev_compat = fdt_getprop(prev, 0, "compatible", &len);
+				if (prev_compat && len > 0) {
+					printf("ABL-provided FDT compatible: %s\n",
+					       prev_compat);
+					selected_dtb =
+						qcom_select_dtb_by_compatible_string(prev_compat);
+				}
+			}
+		}
 	}
 
 	/* Fall back to androidboot.hardware string */
