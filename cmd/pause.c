@@ -14,8 +14,14 @@ static int do_pause(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[
 	if (argc == 2)
 		message = argv[1];
 
-	/* No newline, so it sticks to the bottom of the screen */
-	printf("%s", message);
+	/*
+	 * Two leading newlines so the prompt is visually separated from
+	 * whatever the preceding command spilled to the console - on a phone
+	 * panel the prompt otherwise butts right against the diagnostic
+	 * output above it. No trailing newline; the prompt stays on its own
+	 * line and the cursor sits at the end of the message.
+	 */
+	printf("\n\n%s", message);
 
 	/* Wait on "any" key... */
 	(void) getchar();
