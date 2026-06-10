@@ -241,3 +241,18 @@
 	regulator-min-microvolt = <3000000>;
 	regulator-max-microvolt = <3000000>;
 };
+
+/ {
+	aliases {
+		serial0 = &uart9;
+		serial1 = &uart6;
+	};
+};
+
+&ufs_mem_hc {
+	status = "okay";
+};
+
+&ufs_mem_phy {
+	status = "okay";
+};
