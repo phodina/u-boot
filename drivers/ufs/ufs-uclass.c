@@ -1881,6 +1881,39 @@ out:
 }
 
 /*
+ * Phone platforms whose bootloader / RPMB layout overlaps the UFS LUN0
+ * provisioning region and cannot tolerate UNMAP/PURGE: any erase command
+ * issued against the boot LU bricks the device. The quirk has to apply
+ * regardless of which UFS supplier is fitted (Sony Yoshino/Tama ship with
+ * a mix of Samsung, SK Hynix, and Toshiba parts across batches), and the
+ * per-device rows in ufs_fixups[] are unreliable for this because the
+ * chips frequently leave iProductName / iProductRevisionLevel blank in
+ * the UFS device descriptor -- defeating the model/revision match. Gate
+ * NO_PURGE on the DT root compatible instead.
+ */
+static const char * const ufs_no_purge_platforms[] = {
+	/* Sony Yoshino (msm8998): XZ1 / XZ1 Compact / XZ Premium */
+	"sony,xperia-lilac",
+	"sony,xperia-maple",
+	"sony,xperia-poplar",
+	/* Sony Tama (sdm845): XZ2 / XZ2 Compact / XZ3 */
+	"sony,akari-row",
+	"sony,akatsuki-row",
+	"sony,apollo-row",
+	NULL,
+};
+
+static bool ufshcd_platform_needs_no_purge(void)
+{
+	const char * const *p;
+
+	for (p = ufs_no_purge_platforms; *p; p++)
+		if (of_machine_is_compatible(*p))
+			return true;
+	return false;
+}
+
+/*
  * UFS device quirk table. Entries are matched by manufacturer id, model and
  * fw revision; UFS_ANY_VENDOR / UFS_ANY_MODEL / UFS_ANY_VER act as wildcards.
  */
@@ -1914,6 +1947,15 @@ static void ufshcd_fixup_dev_quirks(struct ufs_hba *hba,
 	 * UNMAP, doing so erases the bootloader on affected platforms.
 	 */
 	if (dev_desc->wspecversion < UFS_PURGE_SPEC_VER)
+		hba->dev_quirks |= UFS_DEVICE_QUIRK_NO_PURGE;
+
+	/*
+	 * Platform-driven NO_PURGE: Sony Yoshino/Tama brick on UNMAP regardless
+	 * of which UFS chip is fitted, and the per-device table rows below
+	 * cannot be relied on because these chips usually report empty
+	 * iProductName / iProductRevisionLevel string descriptors.
+	 */
+	if (ufshcd_platform_needs_no_purge())
 		hba->dev_quirks |= UFS_DEVICE_QUIRK_NO_PURGE;
 
 	for (f = ufs_fixups; f->quirk; f++) {
