@@ -538,6 +538,41 @@ config PHONE_TOP_INSET_LINES
 	  At the default 0 nothing is shifted, so non-phone boards see no
 	  layout change.
 
+config BOOTMENU_QR_DIAG
+	bool "Render a diagnostic QR code on the framebuffer at bootmenu entry"
+	depends on CMD_BOOTMENU && VIDEO && LIB_QRCODE
+	help
+	  On boards where UART, USB and even on-screen text are all
+	  unusable in early bring-up (e.g. SDM845 Poco F1), enable this
+	  to render a QR Code into the simplefb framebuffer when the
+	  bootmenu starts. The QR encodes the framebuffer geometry and
+	  pixel format, the return codes of probing the vidconsole and
+	  attempting a test text write, and the return code of usb_init(),
+	  so the failure can be read off-device by scanning the QR with
+	  a phone.
+
+	  Safe to leave disabled on boards that already have a working
+	  console.
+
+config BOOTMENU_QR_DIAG_SCALE
+	int "Pixels per QR module"
+	depends on BOOTMENU_QR_DIAG
+	default 16
+	help
+	  Each QR module is drawn as an N x N pixel block. Default 16 is
+	  sized so a v10 QR (57 modules + 8-module quiet zone) fits on a
+	  1080-wide panel like the Poco F1.
+
+config BOOTMENU_QR_DIAG_Y_OFFSET
+	int "Pixels of bottom margin below the QR"
+	depends on BOOTMENU_QR_DIAG
+	default 50
+	help
+	  The QR is anchored to the bottom of the panel (so it does not
+	  overlap the U-Boot console / bootmenu text rendered from the
+	  top). This option is the bottom-edge margin in pixels, used to
+	  clear rounded display corners on phone-shaped panels.
+
 config CMD_ADTIMG
 	bool "adtimg"
 	help

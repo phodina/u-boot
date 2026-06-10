@@ -700,7 +700,17 @@ int do_bootmenu(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	if (delay_str)
 		delay = (int)simple_strtol(delay_str, NULL, 10);
 
+#if IS_ENABLED(CONFIG_BOOTMENU_QR_DIAG)
+	{
+		int ret;
+
+		printf("\nBM_PRE_SHOW delay=%d uefi=%d\n", delay, uefi);
+		ret = bootmenu_show(uefi, delay);
+		printf("\nBM_POST_SHOW ret=%d\n", ret);
+	}
+#else
 	bootmenu_show(uefi, delay);
+#endif
 	return 0;
 }
 
