@@ -2218,6 +2218,78 @@ static void ufshcd_def_desc_sizes(struct ufs_hba *hba)
 	hba->desc_size.hlth_desc = QUERY_DESC_HEALTH_DEF_SIZE;
 }
 
+/*
+ * Map a JEDEC UFS manufacturer id to a human-readable vendor name. Returns
+ * NULL for unknown ids so the caller can fall back to printing the raw id.
+ */
+static const char *ufshcd_vendor_name(u16 mid)
+{
+	switch (mid) {
+	case UFS_VENDOR_TOSHIBA:	return "Toshiba/Kioxia";
+	case UFS_VENDOR_SAMSUNG:	return "Samsung";
+	case UFS_VENDOR_SKHYNIX:	return "SK Hynix";
+	case UFS_VENDOR_MICRON:		return "Micron";
+	case UFS_VENDOR_WDC:		return "Western Digital";
+	default:			return NULL;
+	}
+}
+
+/*
+ * Trim trailing whitespace in place. The UFS string descriptors are read as
+ * UTF-16 and any non-printable byte is replaced with a space by
+ * ufshcd_read_string_desc(); on devices that leave the descriptor blank this
+ * yields a length-padded all-spaces string. Stripping the trailing space lets
+ * the diagnostic print fall back to "(unset)" instead of a wide blank field.
+ */
+static void ufshcd_rtrim(char *s)
+{
+	size_t n = strlen(s);
+
+	while (n && s[n - 1] == ' ')
+		s[--n] = '\0';
+}
+
+/*
+ * Print the key UFS device properties read during initialization. Useful for
+ * identifying a device and confirming which quirks were applied, in particular
+ * on platforms (e.g. Sony Yoshino/Tama) where PURGE/UNMAP must be blocked.
+ */
+static void ufshcd_print_dev_info(struct ufs_hba *hba,
+				  struct ufs_dev_desc *card)
+{
+	const char *vendor = ufshcd_vendor_name(card->wmanufacturerid);
+
+	ufshcd_rtrim(card->model);
+	ufshcd_rtrim(card->revision);
+
+	/*
+	 * Use printf() so the dump is always shown regardless of the log
+	 * level (dev_info() would be filtered out at the default loglevel).
+	 */
+	printf("=== UFS Device Information (%s) ===\n", hba->dev->name);
+	if (vendor)
+		printf("  Manufacturer:    %s (0x%04x)\n", vendor,
+		       card->wmanufacturerid);
+	else
+		printf("  Manufacturer ID: 0x%04x\n", card->wmanufacturerid);
+	printf("  Model:           %s\n",
+	       card->model[0] ? card->model : "(unset)");
+	printf("  Revision:        %s\n",
+	       card->revision[0] ? card->revision : "(unset)");
+	printf("  Spec Version:    0x%04x\n", card->wspecversion);
+	printf("  Gear  - RX: %u, TX: %u\n",
+	       hba->pwr_info.gear_rx, hba->pwr_info.gear_tx);
+	printf("  Lane  - RX: %u, TX: %u\n",
+	       hba->pwr_info.lane_rx, hba->pwr_info.lane_tx);
+	printf("  Power - RX: %u, TX: %u, HS rate: %u\n",
+	       hba->pwr_info.pwr_rx, hba->pwr_info.pwr_tx,
+	       hba->pwr_info.hs_rate);
+	printf("  Device Quirks:   0x%08x\n", hba->dev_quirks);
+	printf("  NO_PURGE Quirk:  %s\n",
+	       (hba->dev_quirks & UFS_DEVICE_QUIRK_NO_PURGE) ? "Yes" : "No");
+	printf("=============================================\n");
+}
+
 static int ufs_start(struct ufs_hba *hba)
 {
 	struct ufs_dev_desc card = {0};
@@ -2267,6 +2339,8 @@ static int ufs_start(struct ufs_hba *hba)
 		debug("UFS Device %s is up!\n", hba->dev->name);
 		ufshcd_print_pwr_info(hba);
 	}
+
+	ufshcd_print_dev_info(hba, &card);
 
 	return 0;
 }
