@@ -570,9 +570,19 @@ err:
 DECLARE_GADGET_BIND_CALLBACK(usb_serial_acm, acm_add);
 
 /* STDIO */
+/*
+ * dev->priv is only populated once acm_stdio_start() has run and the gadget
+ * function has been bound. drv_usbacm_init() registers the stdio device
+ * unconditionally though, so anything writing to "usbacm" before the user
+ * picks "Enable serial console gadget" hits a NULL f_acm and faults inside
+ * buf_push/buf_pop. Return cleanly instead of crashing.
+ */
 static int acm_stdio_tstc(struct stdio_dev *dev)
 {
 	struct f_acm *f_acm = stdio_to_acm(dev);
+
+	if (!f_acm)
+		return 0;
 
 	dm_usb_gadget_handle_interrupts(f_acm->udc);
 
@@ -583,6 +593,9 @@ static int acm_stdio_getc(struct stdio_dev *dev)
 {
 	struct f_acm *f_acm = stdio_to_acm(dev);
 	char c;
+
+	if (!f_acm)
+		return 0;
 
 	/* Wait for a character to arrive. */
 	while (!acm_stdio_tstc(dev))
@@ -596,6 +609,9 @@ static int acm_stdio_getc(struct stdio_dev *dev)
 static void acm_stdio_putc(struct stdio_dev *dev, const char c)
 {
 	struct f_acm *f_acm = stdio_to_acm(dev);
+
+	if (!f_acm)
+		return;
 
 	if (c == '\n')
 		buf_push(&f_acm->tx_buf, "\r", 1);
@@ -611,6 +627,9 @@ static void acm_stdio_putc(struct stdio_dev *dev, const char c)
 static void acm_stdio_puts(struct stdio_dev *dev, const char *str)
 {
 	struct f_acm *f_acm = stdio_to_acm(dev);
+
+	if (!f_acm)
+		return;
 
 	while (*str) {
 		if (*str == '\n')
