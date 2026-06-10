@@ -275,6 +275,11 @@ struct scsi_plat {
 	unsigned long max_lun;
 	unsigned long max_id;
 	unsigned long max_bytes_per_req;
+	/*
+	 * Set by the controller driver to forbid the erase (UNMAP) operation,
+	 * e.g. for UFS devices whose PURGE/UNMAP would erase the bootloader.
+	 */
+	bool no_erase;
 };
 
 /* Operations for SCSI */

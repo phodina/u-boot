@@ -2366,6 +2366,18 @@ int ufshcd_probe(struct udevice *ufs_dev, struct ufs_hba_ops *hba_ops)
 	if (err)
 		return err;
 
+	/*
+	 * Some devices must never receive a PURGE / UNMAP (secure erase): on
+	 * the affected platforms it erases the bootloader and permanently
+	 * bricks the device. Disable the SCSI erase op for the whole UFS
+	 * device in that case.
+	 */
+	if (hba->dev_quirks & UFS_DEVICE_QUIRK_NO_PURGE) {
+		scsi_plat->no_erase = true;
+		dev_info(hba->dev,
+			 "NO_PURGE quirk active: SCSI erase/UNMAP disabled\n");
+	}
+
 	return 0;
 }
 

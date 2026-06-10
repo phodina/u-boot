@@ -300,6 +300,11 @@ static ulong scsi_erase(struct udevice *dev, lbaint_t blknr, lbaint_t blkcnt)
 	lbaint_t start, blks, max_blks, blocks;
 	struct scsi_cmd *pccb = (struct scsi_cmd *)&tempccb;
 
+	if (uc_plat->no_erase) {
+		printf("%s: erase not supported on this device\n", __func__);
+		return 0;
+	}
+
 	/* Setup device */
 	pccb->target = block_dev->target;
 	pccb->lun = block_dev->lun;
