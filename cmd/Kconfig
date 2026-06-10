@@ -521,6 +521,16 @@ config CMD_BOOTMENU
 	help
 	  Add an ANSI terminal boot menu command.
 
+config CMD_PHONEMENU
+	bool "phonemenu - stylish sectioned boot menu for phones"
+	select MENU
+	select CMD_BOOTMENU
+	help
+	  ANSI-styled boot menu laid out in labelled sections, intended for
+	  phone-form-factor U-Boot builds. Navigation reuses the bootmenu
+	  key handler, so volume up/down + power work through
+	  BUTTON_REMAP_PHONE_KEYS.
+
 config PHONE_TOP_INSET_LINES
 	int "Lines of top-of-screen inset on a phone display"
 	default 0
