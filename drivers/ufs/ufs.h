@@ -707,6 +707,8 @@ struct ufs_hba {
 	u32			version;
 	u32			intr_mask;
 	enum ufshcd_quirks	quirks;
+	/* UFS device (not host controller) quirks, see ufs_quirks.h */
+	u32			dev_quirks;
 
 	/* Virtual memory reference */
 	struct utp_transfer_cmd_desc *ucdl;

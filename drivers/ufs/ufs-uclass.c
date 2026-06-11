@@ -29,6 +29,7 @@
 #include <linux/dma-mapping.h>
 
 #include "ufs.h"
+#include "ufs_quirks.h"
 
 #define UFSHCD_ENABLE_INTRS	(UTP_TRANSFER_REQ_COMPL |\
 				 UTP_TASK_REQ_COMPL |\
@@ -1866,6 +1867,54 @@ out:
 	return err;
 }
 
+/*
+ * UFS device quirk table. Entries are matched by manufacturer id, model and
+ * fw revision; UFS_ANY_VENDOR / UFS_ANY_MODEL / UFS_ANY_VER act as wildcards.
+ */
+static const struct ufs_dev_quirk ufs_fixups[] = {
+	/* Sony Yoshino/Tama: block PURGE/UNMAP to avoid bricking */
+	UFS_FIX_REVISION(UFS_VENDOR_SKHYNIX, UFS_MODEL_HYNIX_32GB,
+			 UFS_REVISION_HYNIX, UFS_DEVICE_QUIRK_NO_PURGE),
+	UFS_FIX_REVISION(UFS_VENDOR_SKHYNIX, UFS_MODEL_HYNIX_64GB,
+			 UFS_REVISION_HYNIX, UFS_DEVICE_QUIRK_NO_PURGE),
+	UFS_FIX_REVISION(UFS_VENDOR_SAMSUNG, UFS_MODEL_SAMSUNG_64GB,
+			 UFS_REVISION_SAMSUNG, UFS_DEVICE_QUIRK_NO_PURGE),
+	END_FIX
+};
+
+/**
+ * ufshcd_fixup_dev_quirks - apply device-specific quirks
+ *
+ * Sets hba->dev_quirks based on the UFS spec version and the per-device
+ * fixup table above.
+ */
+static void ufshcd_fixup_dev_quirks(struct ufs_hba *hba,
+				    struct ufs_dev_desc *dev_desc)
+{
+	const struct ufs_dev_quirk *f;
+
+	/*
+	 * Devices implementing an older UFS spec must not be issued PURGE /
+	 * UNMAP, doing so erases the bootloader on affected platforms.
+	 */
+	if (dev_desc->wspecversion < UFS_PURGE_SPEC_VER)
+		hba->dev_quirks |= UFS_DEVICE_QUIRK_NO_PURGE;
+
+	for (f = ufs_fixups; f->quirk; f++) {
+		if ((f->wmanufacturerid == dev_desc->wmanufacturerid ||
+		     f->wmanufacturerid == UFS_ANY_VENDOR) &&
+		    (STR_PRFX_EQUAL(f->model, dev_desc->model) ||
+		     !strcmp(f->model, UFS_ANY_MODEL)) &&
+		    (STR_PRFX_EQUAL(f->revision, dev_desc->revision) ||
+		     !strcmp(f->revision, UFS_ANY_VER)))
+			hba->dev_quirks |= f->quirk;
+	}
+
+	if (hba->dev_quirks)
+		dev_dbg(hba->dev, "%s: applied device quirks 0x%08x\n",
+			__func__, hba->dev_quirks);
+}
+
 struct ufs_ref_clk {
 	unsigned long freq_hz;
 	enum ufs_ref_clk_freq val;
@@ -2174,6 +2223,9 @@ static int ufs_start(struct ufs_hba *hba)
 
 		return ret;
 	}
+
+	/* Apply device-specific quirks before negotiating the power mode */
+	ufshcd_fixup_dev_quirks(hba, &card);
 
 	ufshcd_set_dev_ref_clk(hba);
 
