@@ -20,6 +20,14 @@
 int qcom_scan_appended_dtbs(ulong start_addr, size_t max_size);
 
 /**
+ * qcom_scan_fit_dtbs() - Scan for DTBs in FIT image
+ * @fit_addr: Address of the FIT image (typically ramdisk location)
+ *
+ * Return: number of DTBs found
+ */
+int qcom_scan_fit_dtbs(ulong fit_addr);
+
+/**
  * qcom_select_dtb_by_socinfo() - Select the best-matching DTB.
  * @soc_id:     SoC ID from socinfo (matches qcom,msm-id cell[0])
  * @hw_plat:    platform type from socinfo (low 8 bits of qcom,board-id cell[0])
