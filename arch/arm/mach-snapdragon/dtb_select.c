@@ -545,8 +545,26 @@ void *qcom_select_dtb_from_socinfo_and_cmdline(void)
 	 * the known fixed address, skipping any spurious FDT-magic
 	 * patterns inside the SPL binary itself.
 	 */
+#ifdef CONFIG_SPL_QCOM_DTB_SELECTION_SOURCE
 	ulong dtb_scan_start = 0x80180000;
 	dtb_count = qcom_scan_appended_dtbs(dtb_scan_start, SZ_4M);
+#else
+	/* DTBs are in FIT image (ramdisk location) */
+	const char *ramdisk_addr_str = env_get("ramdisk_addr_r");
+	ulong fit_addr = 0;
+
+	if (ramdisk_addr_str) {
+		fit_addr = simple_strtoul(ramdisk_addr_str, NULL, 16);
+	} else {
+		/* Fallback to common ramdisk load address */
+		fit_addr = CONFIG_SYS_LOAD_ADDR + 0x2000000; /* +32MB */
+		printf("No ramdisk_addr_r found, trying 0x%lx\n", fit_addr);
+	}
+
+	if (fit_addr) {
+		dtb_count = qcom_scan_fit_dtbs(fit_addr);
+	}
+#endif
 
 	if (dtb_count == 0) {
 		printf("No DTBs found for selection\n");
