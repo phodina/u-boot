@@ -8,6 +8,20 @@ config UFS
 	  This selects support for Universal Flash Subsystem (UFS).
 	  Say Y here if you want UFS Support.
 
+config UFS_RESTRICT_TX_LANES
+	bool "Restrict the number of UFS TX lanes to 1"
+	depends on UFS
+	default n
+	help
+	  Say Y here to restrict the number of UFS TX lanes to 1. This saves
+	  power at the cost of write performance.
+
+	  This is useful (and on some devices required) for platforms such as
+	  the Sony Yoshino/Tama families where only a single TX lane is
+	  reliably usable.
+
+	  If unsure, say N.
+
 config UFS_AMD_VERSAL2
 	bool "AMD Versal Gen 2 UFS controller platform driver"
 	depends on UFS && ZYNQMP_FIRMWARE

@@ -508,6 +508,19 @@ static int ufshcd_link_startup(struct ufs_hba *hba)
 	int ret;
 	int retries = DME_LINKSTARTUP_RETRIES;
 
+	if (IS_ENABLED(CONFIG_UFS_RESTRICT_TX_LANES)) {
+		/*
+		 * Restrict the number of available TX lanes to 1. This saves
+		 * power at the cost of write performance and is required on
+		 * some platforms (e.g. Sony Yoshino/Tama) where only a single
+		 * TX lane is reliably usable.
+		 */
+		ret = ufshcd_dme_set(hba, UIC_ARG_MIB(PA_AVAILTXDATALANES), 1);
+		if (ret)
+			dev_warn(hba->dev, "%s: failed to restrict TX lanes: %d\n",
+				 __func__, ret);
+	}
+
 	do {
 		ret = ufshcd_ops_link_startup_notify(hba, PRE_CHANGE);
 		if (ret)
