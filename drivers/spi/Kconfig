@@ -463,6 +463,14 @@ config SPI_QUP
 	  mode supports up to 50MHz, up to four chip selects, programmable
 	  data path from 4 bits to 32 bits and numerous protocol variants.
 
+config SPI_GENI_QCOM
+	bool "Qualcomm QUPv3 GENI SPI controller"
+	depends on ARCH_SNAPDRAGON && DM_SPI
+	help
+	  Driver for the GENI Serial Engine in SPI mode found on Qualcomm
+	  QUPv3 (Snapdragon 7xx/8xx and successors). Polled FIFO mode only;
+	  no DMA or GSI. Suitable for low-rate on-board peripherals.
+
 config RENESAS_RPC_SPI
 	bool "Renesas RPC SPI driver"
 	depends on RCAR_64 || RZA1
