@@ -19,7 +19,8 @@
 static char pin_name[MAX_PIN_NAME_LEN] __section(".data");
 
 static const struct pinctrl_function msm_pinctrl_functions[] = {
-	{"qup9", 1},
+	{"qup9", 1},		/* GPIO 4..5: UART9 debug console */
+	{"qup4", 1},		/* GPIO 89..92: GENI QUP0 SE4 SPI */
 	{"gpio", 0},
 };
 
