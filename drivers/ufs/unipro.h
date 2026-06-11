@@ -118,6 +118,9 @@
 #define PA_TXGEAR		0x1568
 #define PA_TXTERMINATION	0x1569
 #define PA_HSSERIES		0x156A
+#define PA_TxHsG1SyncLength	0x1552
+#define PA_TxHsG2SyncLength	0x1554
+#define PA_TxHsG3SyncLength	0x1556
 #define PA_LEGACYDPHYESCDL	0x1570
 #define PA_PWRMODE		0x1571
 #define PA_ACTIVERXDATALANES	0x1580

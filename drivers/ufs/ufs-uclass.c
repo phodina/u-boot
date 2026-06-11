@@ -1872,6 +1872,9 @@ out:
  * fw revision; UFS_ANY_VENDOR / UFS_ANY_MODEL / UFS_ANY_VER act as wildcards.
  */
 static const struct ufs_dev_quirk ufs_fixups[] = {
+	/* SK Hynix devices need an extended HS sync length */
+	UFS_FIX(UFS_VENDOR_SKHYNIX, UFS_ANY_MODEL,
+		UFS_DEVICE_QUIRK_EXTEND_SYNC_LENGTH),
 	/* Sony Yoshino/Tama: block PURGE/UNMAP to avoid bricking */
 	UFS_FIX_REVISION(UFS_VENDOR_SKHYNIX, UFS_MODEL_HYNIX_32GB,
 			 UFS_REVISION_HYNIX, UFS_DEVICE_QUIRK_NO_PURGE),
@@ -2107,6 +2110,12 @@ static int ufshcd_change_power_mode(struct ufs_hba *hba,
 	    pwr_mode->pwr_tx == FAST_MODE)
 		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_HSSERIES),
 			       pwr_mode->hs_rate);
+
+	if (hba->dev_quirks & UFS_DEVICE_QUIRK_EXTEND_SYNC_LENGTH) {
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TxHsG1SyncLength), 0x48);
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TxHsG2SyncLength), 0x48);
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TxHsG3SyncLength), 0x48);
+	}
 
 	ret = ufshcd_uic_change_pwr_mode(hba, pwr_mode->pwr_rx << 4 |
 					 pwr_mode->pwr_tx);

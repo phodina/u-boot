@@ -78,4 +78,11 @@ struct ufs_dev_quirk {
  */
 #define UFS_DEVICE_QUIRK_NO_PURGE		(1 << 0)
 
+/*
+ * Some SK Hynix devices on Sony Yoshino/Tama need an extended HS sync length
+ * (PA_TxHsG{1,2,3}SyncLength) programmed before the power-mode change for a
+ * reliable HS link.
+ */
+#define UFS_DEVICE_QUIRK_EXTEND_SYNC_LENGTH	(1 << 1)
+
 #endif /* _UFS_QUIRKS_H */
