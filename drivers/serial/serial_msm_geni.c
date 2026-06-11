@@ -531,7 +531,7 @@ static int msm_serial_probe(struct udevice *dev)
 	proto &= FW_REV_PROTOCOL_MSK;
 	proto >>= FW_REV_PROTOCOL_SHFT;
 
-	if (proto == GENI_SE_INVALID_PROTO) {
+	if (!IS_ENABLED(CONFIG_XPL_BUILD) && proto == GENI_SE_INVALID_PROTO) {
 		qcom_geni_load_firmware(priv->base, dev);
 		proto = readl(priv->base + GENI_FW_REVISION_RO);
 		proto &= FW_REV_PROTOCOL_MSK;
@@ -605,19 +605,23 @@ static struct udevice init_dev = {
 
 #include <debug_uart.h>
 
+#ifndef CONFIG_DEBUG_UART_SKIP_INIT
 #define CLK_DIV (CONFIG_DEBUG_UART_CLOCK / \
 					(CONFIG_BAUDRATE * UART_OVERSAMPLING))
 #if (CONFIG_DEBUG_UART_CLOCK % (CONFIG_BAUDRATE * UART_OVERSAMPLING) > 0)
 #error Clocks cannot be set at early debug. Change CONFIG_BAUDRATE
 #endif
+#endif
 
 static inline void _debug_uart_init(void)
 {
+#ifndef CONFIG_DEBUG_UART_SKIP_INIT
 	phys_addr_t base = CONFIG_VAL(DEBUG_UART_BASE);
 
 	geni_serial_init(&init_dev);
 	geni_serial_baud(base, CLK_DIV, CONFIG_BAUDRATE);
 	qcom_geni_serial_start_tx(base);
+#endif
 }
 
 static inline void _debug_uart_putc(int ch)
