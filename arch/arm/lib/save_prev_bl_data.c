@@ -66,7 +66,9 @@ int save_prev_bl_data(void)
 
 	if (IS_ENABLED(CONFIG_SAVE_PREV_BL_FDT_ADDR))
 		env_set_addr("prevbl_fdt_addr", (void *)reg0);
-	if (!IS_ENABLED(CONFIG_SAVE_PREV_BL_INITRAMFS_START_ADDR))
+
+	if (!IS_ENABLED(CONFIG_SAVE_PREV_BL_INITRAMFS_START_ADDR) &&
+	    !IS_ENABLED(CONFIG_SAVE_PREV_BL_BOOTARGS))
 		return 0;
 
 	node = fdt_path_offset(fdt_blob, "/chosen");
@@ -75,6 +77,17 @@ int save_prev_bl_data(void)
 					__func__, reg0);
 		return -ENODATA;
 	}
+
+	if (IS_ENABLED(CONFIG_SAVE_PREV_BL_BOOTARGS)) {
+		const char *bootargs = fdt_getprop(fdt_blob, node, "bootargs",
+						   NULL);
+
+		if (bootargs && *bootargs)
+			env_set("bootargs", bootargs);
+	}
+
+	if (!IS_ENABLED(CONFIG_SAVE_PREV_BL_INITRAMFS_START_ADDR))
+		return 0;
 	/*
 	 * linux,initrd-start property might be either 64 or 32 bit,
 	 * depending on primary bootloader implementation.

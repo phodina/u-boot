@@ -2036,6 +2036,21 @@ config SAVE_PREV_BL_INITRAMFS_START_ADDR
 	  If no initramfs was provided by previous bootloader, no env variables
 	  will be created.
 
+config SAVE_PREV_BL_BOOTARGS
+	depends on ARM
+	bool "Save /chosen/bootargs from the previous bootloader's FDT into $bootargs"
+	help
+	  When u-boot is chain-loaded from a primary bootloader that already
+	  populated /chosen/bootargs in the device tree it handed off (Android
+	  ABL is the motivating case), copy that string into U-Boot's
+	  bootargs environment variable.
+
+	  Without this option the kernel command-line ABL prepared (slot
+	  suffix, AVB state, codename, hardware tags, ...) is lost the moment
+	  u-boot starts, and any subsequent kernel handoff has to reconstruct
+	  it from scratch. With it, $bootargs is the natural authoritative
+	  copy and `printenv bootargs` from the menu shows what ABL passed.
+
 menu "Configuration editor"
 
 config CEDIT
