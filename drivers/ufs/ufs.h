@@ -346,15 +346,20 @@ struct utp_upiu_rsp {
 };
 
 #define MAX_MODEL_LEN 16
+#define MAX_REVISION_LEN 4
 /**
  * ufs_dev_desc - ufs device details from the device descriptor
  *
  * @wmanufacturerid: card details
+ * @wspecversion: UFS spec version supported by the device
  * @model: card model
+ * @revision: card fw revision
  */
 struct ufs_dev_desc {
 	u16 wmanufacturerid;
+	u16 wspecversion;
 	char model[MAX_MODEL_LEN + 1];
+	char revision[MAX_REVISION_LEN + 1];
 };
 
 /* Device descriptor parameters offsets in bytes*/

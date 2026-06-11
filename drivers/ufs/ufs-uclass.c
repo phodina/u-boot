@@ -1792,6 +1792,7 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 	int err;
 	size_t buff_len;
 	u8 model_index;
+	u8 revision_index;
 	u8 *desc_buf;
 
 	buff_len = max_t(size_t, hba->desc_size.dev_desc,
@@ -1816,7 +1817,11 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 	dev_desc->wmanufacturerid = desc_buf[DEVICE_DESC_PARAM_MANF_ID] << 8 |
 				     desc_buf[DEVICE_DESC_PARAM_MANF_ID + 1];
 
+	dev_desc->wspecversion = desc_buf[DEVICE_DESC_PARAM_SPEC_VER] << 8 |
+				  desc_buf[DEVICE_DESC_PARAM_SPEC_VER + 1];
+
 	model_index = desc_buf[DEVICE_DESC_PARAM_PRDCT_NAME];
+	revision_index = desc_buf[DEVICE_DESC_PARAM_PRDCT_REV];
 
 	/* Zero-pad entire buffer for string termination. */
 	memset(desc_buf, 0, buff_len);
@@ -1836,6 +1841,25 @@ static int ufs_get_device_desc(struct ufs_hba *hba,
 
 	/* Null terminate the model string */
 	dev_desc->model[MAX_MODEL_LEN] = '\0';
+
+	/* Zero-pad entire buffer for string termination. */
+	memset(desc_buf, 0, buff_len);
+
+	err = ufshcd_read_string_desc(hba, revision_index, desc_buf,
+				      QUERY_DESC_MAX_SIZE, true/*ASCII*/);
+	if (err) {
+		dev_err(hba->dev, "%s: Failed reading Product Revision. err = %d\n",
+			__func__, err);
+		goto out;
+	}
+
+	desc_buf[QUERY_DESC_MAX_SIZE] = '\0';
+	strlcpy(dev_desc->revision, (char *)(desc_buf + QUERY_DESC_HDR_SIZE),
+		min_t(u8, desc_buf[QUERY_DESC_LENGTH_OFFSET],
+		      MAX_REVISION_LEN));
+
+	/* Null terminate the revision string */
+	dev_desc->revision[MAX_REVISION_LEN] = '\0';
 
 out:
 	kfree(desc_buf);
