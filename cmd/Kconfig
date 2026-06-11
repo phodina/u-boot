@@ -521,6 +521,23 @@ config CMD_BOOTMENU
 	help
 	  Add an ANSI terminal boot menu command.
 
+config PHONE_TOP_INSET_LINES
+	int "Lines of top-of-screen inset on a phone display"
+	default 0
+	help
+	  Number of character rows / bitmap-font lines to keep blank at the
+	  top of the framebuffer when rendering U-Boot's phone menus, button
+	  monitor and other phone-form UI.
+
+	  Phone panels typically have either rounded corners (Pixel 3 / 3a)
+	  or a front-camera notch in the top centre (OnePlus 6, others).
+	  Drawing text into that region either clips it under the corner
+	  radius or paints behind the camera cutout. Set this to the number
+	  of font-height lines you want pushed below the obstruction.
+
+	  At the default 0 nothing is shifted, so non-phone boards see no
+	  layout change.
+
 config CMD_ADTIMG
 	bool "adtimg"
 	help

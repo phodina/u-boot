@@ -595,9 +595,28 @@ void *video_get_u_boot_logo(void)
 static int show_splash(struct udevice *dev)
 {
 	u8 *data = SPLASH_START(u_boot_logo);
+	int y_off = 4;
 	int ret;
 
-	ret = video_bmp_display(dev, map_to_sysmem(data), -4, 4, true);
+	/*
+	 * Phone form factors have rounded corners / camera notches at the top
+	 * of the panel. Push the logo down past whatever the vidconsole is
+	 * already insetting (CONFIG_PHONE_TOP_INSET_LINES * font height) so
+	 * the BMP doesn't get clipped under the obstruction. At the default
+	 * 0 nothing shifts.
+	 */
+	if (CONFIG_PHONE_TOP_INSET_LINES > 0) {
+		struct udevice *vc;
+
+		if (!device_find_first_child_by_uclass(dev, UCLASS_VIDEO_CONSOLE,
+						       &vc) && vc) {
+			struct vidconsole_priv *vc_priv = dev_get_uclass_priv(vc);
+
+			y_off += CONFIG_PHONE_TOP_INSET_LINES * vc_priv->y_charsize;
+		}
+	}
+
+	ret = video_bmp_display(dev, map_to_sysmem(data), -4, y_off, true);
 
 	return 0;
 }

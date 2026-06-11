@@ -757,6 +757,16 @@ static int vidconsole_post_probe(struct udevice *dev)
 	if (!priv->tab_width_frac)
 		priv->tab_width_frac = VID_TO_POS(priv->x_charsize) * 8;
 
+	/*
+	 * Drop the initial cursor down by CONFIG_PHONE_TOP_INSET_LINES rows so
+	 * the very first text that hits the framebuffer (U-Boot banner, board
+	 * model, MMC enumeration, etc.) starts below display obstructions like
+	 * the Pixel rounded top corners or the OP6 front-camera notch. At the
+	 * default 0 nothing shifts. priv->y_charsize was filled in by the
+	 * concrete driver's probe (console_set_font), so it is valid here.
+	 */
+	priv->ycur = CONFIG_PHONE_TOP_INSET_LINES * priv->y_charsize;
+
 	if (dev_seq(dev)) {
 		snprintf(sdev->name, sizeof(sdev->name), "vidconsole%d",
 			 dev_seq(dev));

@@ -69,7 +69,12 @@ static int monitor_buttons(unsigned long timeout_ms)
 	ulong start = get_timer(0);
 	ulong elapsed;
 
-	puts("\x1b[2J\x1b[H");
+	/*
+	 * Skip CONFIG_PHONE_TOP_INSET_LINES rows so the header / table sit
+	 * below display obstructions (Pixel rounded corner, OP6 notch...).
+	 */
+	puts("\x1b[2J");
+	printf("\x1b[%d;1H", CONFIG_PHONE_TOP_INSET_LINES + 1);
 	puts("Button monitor\r\n\r\n");
 
 	for (;;) {
@@ -79,8 +84,8 @@ static int monitor_buttons(unsigned long timeout_ms)
 		if (elapsed >= timeout_ms)
 			break;
 
-		/* Cursor to row 3, col 1 - just below the header line. */
-		puts("\x1b[3;1H");
+		/* Cursor to row 3 (header + blank) + inset, col 1. */
+		printf("\x1b[%d;1H", CONFIG_PHONE_TOP_INSET_LINES + 3);
 		printf("%lu.%lus left\x1b[K\r\n",
 		       (timeout_ms - elapsed) / 1000,
 		       ((timeout_ms - elapsed) % 1000) / 100);
